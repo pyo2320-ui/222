@@ -1,0 +1,446 @@
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>단독주택 수도요금 정산기</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-8">
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- 헤더 -->
+        <header class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                    </svg>
+                    단독주택 수도요금 정산기
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">가구별 인원수 및 기초생활수급 감면액을 고려하여 공정하게 정산합니다.</p>
+            </div>
+            <button onclick="resetToDefault()" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-300">
+                기초 셋팅 초기화
+            </button>
+        </header>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- 왼쪽: 요금 입력 및 설정 -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- 요금 입력 카드 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                    <h2 class="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+                        <span>💰</span> 요금 정보 입력
+                    </h2>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">총 청구 금액 (원)</label>
+                        <input type="number" id="totalBill" value="120000" oninput="calculate()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold text-slate-900" placeholder="예: 120000">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">실제 납부할 금액 (원)</label>
+                        <input type="number" id="actualPay" value="95000" oninput="calculate()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold text-blue-600" placeholder="예: 95000">
+                        <p class="text-[11px] text-slate-400 mt-1">※ 감면액이 적용된 고지서상 납부 금액</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">수급자 1인당 감면액 (원)</label>
+                        <input type="number" id="discountPerPerson" value="" oninput="calculate()" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-semibold text-emerald-600" placeholder="비워두면 자동 계산됨">
+                        <p class="text-[11px] text-slate-400 mt-1">※ 직접 입력하거나 비워두면 (총청구액 - 실제납부액) ÷ 수급자수로 자동 설정됩니다.</p>
+                    </div>
+
+                    <!-- 계산 결과 서머리 요약 -->
+                    <div class="pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
+                        <div class="flex justify-between">
+                            <span>총 감면액 (총청구-납부액):</span>
+                            <span id="totalDiscountAmount" class="font-bold text-emerald-600">0 원</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>적용된 1인당 감면액:</span>
+                            <span id="appliedDiscountPerPerson" class="font-bold text-slate-700">0 원</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 가구 설정 (추가/수정 옵션) -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <span>🏠</span> 가구 정보 설정
+                        </h2>
+                        <button onclick="addHousehold()" class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-2.5 py-1 rounded-md border border-blue-200 transition-colors">
+                            + 가구 추가
+                        </button>
+                    </div>
+
+                    <div id="householdInputs" class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                        <!-- Dynamic Input Rows -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 정산 결과 및 검증 -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- 최종 정산 검증 결과 카드 -->
+                <div id="checkResultCard" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">정산 검증 시스템</span>
+                            <h3 id="checkStatusText" class="text-xl font-extrabold text-slate-800">계산 대기 중</h3>
+                            <p id="checkDetailText" class="text-xs text-slate-500 mt-1">납부액과 정산 합계 금액을 비교합니다.</p>
+                        </div>
+                        <div class="text-right bg-slate-50 p-3 rounded-xl border border-slate-100 min-w-[160px]">
+                            <div class="text-xs text-slate-500">실제 납부할 금액</div>
+                            <div id="targetAmountDisplay" class="text-lg font-extrabold text-slate-900">0 원</div>
+                            <div class="text-xs text-slate-500 mt-1">정산액 합계</div>
+                            <div id="sumAmountDisplay" class="text-sm font-bold text-blue-600">0 원</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 상세 정산 내역 테이블 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <span>📊</span> 가구별 정산 상세 내역
+                        </h2>
+                        <span class="text-xs text-slate-400">원 단위 정산 수식 적용됨</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-3.5 pl-6">가구 (호수)</th>
+                                    <th class="p-3.5 text-center">인원수</th>
+                                    <th class="p-3.5 text-center">수급자</th>
+                                    <th class="p-3.5 text-right">기본 분담액</th>
+                                    <th class="p-3.5 text-right">수급자 감면</th>
+                                    <th class="p-3.5 text-right">초과 감면 차액 공제</th>
+                                    <th class="p-3.5 text-right pr-6">최종 납부 금액</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Dynamic Table Rows -->
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-slate-50 font-bold text-slate-900 border-t border-slate-200">
+                                    <td class="p-4 pl-6">합계</td>
+                                    <td id="totalPeople" class="p-4 text-center">0명</td>
+                                    <td id="totalBeneficiaries" class="p-4 text-center">0명</td>
+                                    <td id="totalBaseShare" class="p-4 text-right">0원</td>
+                                    <td id="totalDiscount" class="p-4 text-right text-emerald-600">0원</td>
+                                    <td id="totalExtraRebate" class="p-4 text-right text-indigo-600">0원</td>
+                                    <td id="totalFinalPay" class="p-4 text-right pr-6 text-blue-600 text-base">0원</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 안내 및 계산 로직 설명 -->
+                <div class="bg-blue-50/60 p-5 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-2">
+                    <h4 class="font-bold flex items-center gap-1">
+                        <span>ℹ️</span> 정산 로직 안내
+                    </h4>
+                    <ul class="list-disc pl-4 space-y-1 text-slate-600 leading-relaxed">
+                        <li><strong>1단계 (기본 분담):</strong> 총 청구 금액을 건물 전체 인원수로 나누어 1인당 기본 요금을 산정합니다.</li>
+                        <li><strong>2단계 (수급자 감면):</strong> 각 가구의 수급자 수만큼 감면액을 차감합니다. (1인당 감면액 입력값이 없을 경우 `총 감면액 ÷ 수급자 총원`으로 산정)</li>
+                        <li><strong>3단계 (인원수 비율 초과 차액 차감):</strong> 1명/수급자 1명 가구처럼 감면 후 0원이 된 가구를 제외하고, 남은 차액을 <strong>나머지 가구의 인원수 비율(예: 2명인 가구는 1명인 가구의 2배 차감)</strong>에 따라 차감해 줍니다.</li>
+                        <li><strong>4단계 (검증):</strong> 모든 가구의 최종 금액 합계가 실제 납부액과 정확히 일치하는지 자동 체크합니다.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 기본 셋팅 데이터
+        const defaultHouseholds = [
+            { name: "201호", people: 2, beneficiaries: 0 },
+            { name: "101호", people: 1, beneficiaries: 0 },
+            { name: "102호", people: 1, beneficiaries: 1 },
+            { name: "B01호", people: 1, beneficiaries: 1 },
+            { name: "B02호", people: 2, beneficiaries: 1 },
+            { name: "B03호", people: 1, beneficiaries: 0 }
+        ];
+
+        let households = JSON.parse(JSON.stringify(defaultHouseholds));
+
+        // 초기화
+        window.onload = function() {
+            renderHouseholdInputs();
+            calculate();
+        };
+
+        // 기본 셋팅으로 복원
+        function resetToDefault() {
+            households = JSON.parse(JSON.stringify(defaultHouseholds));
+            document.getElementById('totalBill').value = 120000;
+            document.getElementById('actualPay').value = 95000;
+            document.getElementById('discountPerPerson').value = "";
+            renderHouseholdInputs();
+            calculate();
+        }
+
+        // 가구 Input 렌더링 (+ - 버튼 형태)
+        function renderHouseholdInputs() {
+            const container = document.getElementById('householdInputs');
+            container.innerHTML = '';
+
+            households.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${item.name}" onchange="updateHousehold(${index}, 'name', this.value)" 
+                            class="w-16 p-1.5 text-xs font-bold bg-white border border-slate-300 rounded-md focus:ring-1 focus:ring-blue-500 text-slate-800" placeholder="호수">
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <!-- 인원수 컨트롤 -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-[10px] text-slate-500 font-medium mb-0.5">인원수</span>
+                            <div class="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden">
+                                <button type="button" onclick="changeCount(${index}, 'people', -1)" class="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border-r border-slate-200 transition-colors">-</button>
+                                <span class="w-7 text-center text-xs font-bold text-slate-800">${item.people}</span>
+                                <button type="button" onclick="changeCount(${index}, 'people', 1)" class="w-6 h-6 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs border-l border-slate-200 transition-colors">+</button>
+                            </div>
+                        </div>
+
+                        <!-- 수급자 컨트롤 -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-[10px] text-emerald-600 font-medium mb-0.5">수급자</span>
+                            <div class="flex items-center bg-white border border-emerald-200 rounded-lg overflow-hidden">
+                                <button type="button" onclick="changeCount(${index}, 'beneficiaries', -1)" class="w-6 h-6 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs border-r border-emerald-200 transition-colors">-</button>
+                                <span class="w-7 text-center text-xs font-bold text-emerald-600">${item.beneficiaries}</span>
+                                <button type="button" onclick="changeCount(${index}, 'beneficiaries', 1)" class="w-6 h-6 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs border-l border-emerald-200 transition-colors">+</button>
+                            </div>
+                        </div>
+
+                        <!-- 삭제 버튼 -->
+                        <button type="button" onclick="removeHousehold(${index})" class="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors ml-1 mt-3">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // 인원/수급자 증감 조작
+        function changeCount(index, field, delta) {
+            if (field === 'people') {
+                const newPeople = households[index].people + delta;
+                if (newPeople >= 1) { // 최소 1명 이상
+                    households[index].people = newPeople;
+                    if (households[index].beneficiaries > newPeople) {
+                        households[index].beneficiaries = newPeople;
+                    }
+                }
+            } else if (field === 'beneficiaries') {
+                const newBeneficiaries = households[index].beneficiaries + delta;
+                if (newBeneficiaries >= 0 && newBeneficiaries <= households[index].people) {
+                    households[index].beneficiaries = newBeneficiaries;
+                }
+            }
+            renderHouseholdInputs();
+            calculate();
+        }
+
+        // 가구 정보 업데이트
+        function updateHousehold(index, key, value) {
+            households[index][key] = value;
+            calculate();
+        }
+
+        // 가구 추가
+        function addHousehold() {
+            const nextNum = households.length + 1;
+            households.push({ name: `${nextNum}호`, people: 1, beneficiaries: 0 });
+            renderHouseholdInputs();
+            calculate();
+        }
+
+        // 가구 삭제
+        function removeHousehold(index) {
+            if (households.length <= 1) return;
+            households.splice(index, 1);
+            renderHouseholdInputs();
+            calculate();
+        }
+
+        // 숫자 포맷팅 (원 단위)
+        function formatMoney(amount) {
+            return Math.round(amount).toLocaleString('ko-KR') + ' 원';
+        }
+
+        // 정산 계산 함수
+        function calculate() {
+            const totalBill = parseFloat(document.getElementById('totalBill').value) || 0;
+            const actualPay = parseFloat(document.getElementById('actualPay').value) || 0;
+            const manualDiscountPerPerson = parseFloat(document.getElementById('discountPerPerson').value);
+
+            const totalPeople = households.reduce((sum, h) => sum + h.people, 0);
+            const totalBeneficiaries = households.reduce((sum, h) => sum + h.beneficiaries, 0);
+
+            // 전체 감면액 계산
+            const totalDiscount = totalBill - actualPay;
+            
+            // 수급자 1인당 감면액 결정
+            let discountPerPerson = 0;
+            if (!isNaN(manualDiscountPerPerson) && manualDiscountPerPerson > 0) {
+                discountPerPerson = manualDiscountPerPerson;
+            } else if (totalBeneficiaries > 0) {
+                discountPerPerson = totalDiscount / totalBeneficiaries;
+            }
+
+            document.getElementById('totalDiscountAmount').innerText = formatMoney(totalDiscount);
+            document.getElementById('appliedDiscountPerPerson').innerText = formatMoney(discountPerPerson);
+
+            if (totalPeople === 0) return;
+
+            // 1단계: 1인당 기본 요금
+            const pricePerPerson = totalBill / totalPeople;
+
+            // 2단계: 가구별 기본 요금 및 감면액 차감
+            let surplusSum = 0;
+            let calculatedHouseholds = households.map(h => {
+                const baseShare = h.people * pricePerPerson;
+                const directDiscount = h.beneficiaries * discountPerPerson;
+                const tempPay = baseShare - directDiscount;
+                
+                let initialPay = tempPay;
+                let isFullDiscounted = false;
+
+                // 마이너스 요금 발생 시 (감면액이 분담금보다 큰 1인/수급자1인 가구 등)
+                if (tempPay <= 0) {
+                    surplusSum += Math.abs(tempPay); // 차액 적립
+                    initialPay = 0; // 해당 가구 요금은 0원 처리
+                    isFullDiscounted = true;
+                }
+
+                return {
+                    ...h,
+                    baseShare,
+                    directDiscount,
+                    tempPay: initialPay,
+                    isFullDiscounted,
+                    extraRebate: 0,
+                    finalPay: initialPay
+                };
+            });
+
+            // 3단계: 초과 감면 차액을 1인/수급자 1명(완전감면 가구)을 제외한 나머지 가구의 '인원수 비율'에 맞춰 차감
+            const eligibleHouseholds = calculatedHouseholds.filter(h => !h.isFullDiscounted);
+            
+            if (surplusSum > 0 && eligibleHouseholds.length > 0) {
+                // 수급자 혜택을 받지 않은 일반 가구원 수(비수급 인원)의 총합 계산
+                const eligibleNonBeneficiaryPeopleSum = eligibleHouseholds.reduce((sum, h) => sum + (h.people - h.beneficiaries), 0);
+
+                if (eligibleNonBeneficiaryPeopleSum > 0) {
+                    calculatedHouseholds = calculatedHouseholds.map(h => {
+                        if (!h.isFullDiscounted) {
+                            // 비수급 인원(h.people - h.beneficiaries) 비율에 따른 차액 차감
+                            const nonBeneficiaryCount = h.people - h.beneficiaries;
+                            const rebate = surplusSum * (nonBeneficiaryCount / eligibleNonBeneficiaryPeopleSum);
+                            return {
+                                ...h,
+                                extraRebate: rebate,
+                                finalPay: Math.max(0, h.tempPay - rebate)
+                            };
+                        }
+                        return h;
+                    });
+                }
+            }
+
+            // UI 테이블 렌더링 및 검증
+            renderResults(calculatedHouseholds, totalPeople, totalBeneficiaries, actualPay);
+        }
+
+        // 결과 렌더링 및 검증 체크
+        function renderResults(data, totalPeople, totalBeneficiaries, actualPay) {
+            const tbody = document.getElementById('resultTableBody');
+            tbody.innerHTML = '';
+
+            let sumBaseShare = 0;
+            let sumDirectDiscount = 0;
+            let sumExtraRebate = 0;
+            let sumFinalPay = 0;
+
+            data.forEach(item => {
+                sumBaseShare += item.baseShare;
+                sumDirectDiscount += item.directDiscount;
+                sumExtraRebate += item.extraRebate;
+                sumFinalPay += item.finalPay;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-6 font-bold text-slate-800">${item.name}</td>
+                    <td class="p-3.5 text-center text-slate-600">${item.people}명</td>
+                    <td class="p-3.5 text-center">
+                        ${item.beneficiaries > 0 
+                            ? `<span class="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-semibold">${item.beneficiaries}명</span>` 
+                            : `<span class="text-slate-400">0명</span>`}
+                    </td>
+                    <td class="p-3.5 text-right text-slate-600">${formatMoney(item.baseShare)}</td>
+                    <td class="p-3.5 text-right font-medium text-emerald-600">${item.directDiscount > 0 ? '-' + formatMoney(item.directDiscount) : '0 원'}</td>
+                    <td class="p-3.5 text-right font-medium text-indigo-600">${item.extraRebate > 0 ? '-' + formatMoney(item.extraRebate) : '0 원'}</td>
+                    <td class="p-3.5 text-right pr-6 font-extrabold ${item.finalPay === 0 ? 'text-slate-400' : 'text-blue-600'}">${formatMoney(item.finalPay)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 합계 행 렌더링
+            document.getElementById('totalPeople').innerText = `${totalPeople}명`;
+            document.getElementById('totalBeneficiaries').innerText = `${totalBeneficiaries}명`;
+            document.getElementById('totalBaseShare').innerText = formatMoney(sumBaseShare);
+            document.getElementById('totalDiscount').innerText = '-' + formatMoney(sumDirectDiscount);
+            document.getElementById('totalExtraRebate').innerText = '-' + formatMoney(sumExtraRebate);
+            document.getElementById('totalFinalPay').innerText = formatMoney(sumFinalPay);
+
+            // 최종 검증 체크
+            const card = document.getElementById('checkResultCard');
+            const statusText = document.getElementById('checkStatusText');
+            const detailText = document.getElementById('checkDetailText');
+            
+            document.getElementById('targetAmountDisplay').innerText = formatMoney(actualPay);
+            document.getElementById('sumAmountDisplay').innerText = formatMoney(sumFinalPay);
+
+            const diff = Math.abs(actualPay - sumFinalPay);
+
+            if (diff < 1) { // 반올림 오차범위 1원 이내
+                card.className = "bg-emerald-50/80 p-6 rounded-2xl border-2 border-emerald-400 shadow-sm transition-all";
+                statusText.className = "text-xl font-extrabold text-emerald-800 flex items-center gap-2";
+                statusText.innerHTML = `<span>✅</span> 정산 완벽 일치!`;
+                detailText.className = "text-xs text-emerald-700 mt-1 font-medium";
+                detailText.innerText = `실제 납부할 금액(${formatMoney(actualPay)})과 가구별 정산 합계가 정확히 일치합니다.`;
+            } else {
+                card.className = "bg-rose-50/80 p-6 rounded-2xl border-2 border-rose-300 shadow-sm transition-all";
+                statusText.className = "text-xl font-extrabold text-rose-800 flex items-center gap-2";
+                statusText.innerHTML = `<span>⚠️</span> 금액 불일치 (차액: ${formatMoney(diff)})`;
+                detailText.className = "text-xs text-rose-600 mt-1";
+                detailText.innerText = `입력한 금액과 정산 합계 간 차이가 있습니다. 수급자 감면액 단가를 확인해주세요.`;
+            }
+        }
+    </script>
+</body>
+</html>
+```
